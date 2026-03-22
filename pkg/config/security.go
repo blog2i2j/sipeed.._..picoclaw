@@ -6,6 +6,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,9 +199,12 @@ func loadSecurityConfig(securityPath string) (*SecurityConfig, error) {
 
 // saveSecurityConfig saves the security configuration to security.yml
 func saveSecurityConfig(securityPath string, sec *SecurityConfig) error {
-	data, err := yaml.Marshal(sec)
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	err := enc.Encode(sec)
 	if err != nil {
 		return fmt.Errorf("failed to marshal security config: %w", err)
 	}
-	return fileutil.WriteFileAtomic(securityPath, data, 0o600)
+	return fileutil.WriteFileAtomic(securityPath, buf.Bytes(), 0o600)
 }
