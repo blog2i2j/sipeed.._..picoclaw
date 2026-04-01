@@ -287,6 +287,7 @@ func (c *BaseChannel) HandleMessage(
 		MediaScope: scope,
 		Metadata:   metadata,
 	}
+	msg.Context = bus.ContextFromLegacyInbound(msg)
 
 	// Auto-trigger typing indicator, message reaction, and placeholder before publishing.
 	// Each capability is independent — all three may fire for the same message.

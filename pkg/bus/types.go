@@ -15,11 +15,39 @@ type SenderInfo struct {
 	DisplayName string `json:"display_name,omitempty"` // display name
 }
 
+// InboundContext captures the normalized, platform-agnostic facts about an
+// inbound message. This is the long-term source of truth for routing and
+// session allocation. Legacy top-level fields on InboundMessage remain during
+// the transition and are derived from this context when missing.
+type InboundContext struct {
+	Channel string `json:"channel"`
+	Account string `json:"account,omitempty"`
+
+	ChatID   string `json:"chat_id"`
+	ChatType string `json:"chat_type,omitempty"` // direct / group / channel
+	TopicID  string `json:"topic_id,omitempty"`
+
+	SpaceID   string `json:"space_id,omitempty"`
+	SpaceType string `json:"space_type,omitempty"` // guild / team / workspace / tenant
+
+	SenderID  string `json:"sender_id"`
+	MessageID string `json:"message_id,omitempty"`
+
+	Mentioned bool `json:"mentioned,omitempty"`
+
+	ReplyToMessageID string `json:"reply_to_message_id,omitempty"`
+	ReplyToSenderID  string `json:"reply_to_sender_id,omitempty"`
+
+	ReplyHandles map[string]string `json:"reply_handles,omitempty"`
+	Raw          map[string]string `json:"raw,omitempty"`
+}
+
 type InboundMessage struct {
 	Channel    string            `json:"channel"`
 	SenderID   string            `json:"sender_id"`
 	Sender     SenderInfo        `json:"sender"`
 	ChatID     string            `json:"chat_id"`
+	Context    InboundContext    `json:"context"`
 	Content    string            `json:"content"`
 	Media      []string          `json:"media,omitempty"`
 	Peer       Peer              `json:"peer"`                  // routing peer

@@ -34,6 +34,126 @@ func TestPublishConsume(t *testing.T) {
 	if got.Channel != "test" {
 		t.Fatalf("expected channel 'test', got %q", got.Channel)
 	}
+	if got.Context.Channel != "test" {
+		t.Fatalf("expected context channel 'test', got %q", got.Context.Channel)
+	}
+	if got.Context.ChatID != "chat1" {
+		t.Fatalf("expected context chat ID 'chat1', got %q", got.Context.ChatID)
+	}
+	if got.Context.SenderID != "user1" {
+		t.Fatalf("expected context sender ID 'user1', got %q", got.Context.SenderID)
+	}
+}
+
+func TestPublishInbound_NormalizesLegacyFieldsIntoContext(t *testing.T) {
+	mb := NewMessageBus()
+	defer mb.Close()
+
+	msg := InboundMessage{
+		Channel:   "slack",
+		SenderID:  "U123",
+		ChatID:    "C456/1712",
+		Content:   "hello",
+		MessageID: "1712.01",
+		Peer:      Peer{Kind: "group", ID: "C456"},
+		Metadata: map[string]string{
+			"account_id":          "workspace-a",
+			"team_id":             "T001",
+			"reply_to_message_id": "1700.01",
+			"is_mentioned":        "true",
+			"parent_peer_kind":    "topic",
+			"parent_peer_id":      "1712",
+		},
+	}
+
+	if err := mb.PublishInbound(context.Background(), msg); err != nil {
+		t.Fatalf("PublishInbound failed: %v", err)
+	}
+
+	got := <-mb.InboundChan()
+	if got.Context.Channel != "slack" {
+		t.Fatalf("expected context channel slack, got %q", got.Context.Channel)
+	}
+	if got.Context.Account != "workspace-a" {
+		t.Fatalf("expected context account workspace-a, got %q", got.Context.Account)
+	}
+	if got.Context.ChatType != "group" {
+		t.Fatalf("expected context chat type group, got %q", got.Context.ChatType)
+	}
+	if got.Context.TopicID != "1712" {
+		t.Fatalf("expected topic 1712, got %q", got.Context.TopicID)
+	}
+	if got.Context.SpaceType != "team" || got.Context.SpaceID != "T001" {
+		t.Fatalf("expected team space T001, got %q/%q", got.Context.SpaceType, got.Context.SpaceID)
+	}
+	if !got.Context.Mentioned {
+		t.Fatal("expected mentioned=true in context")
+	}
+	if got.Context.ReplyToMessageID != "1700.01" {
+		t.Fatalf("expected reply_to_message_id 1700.01, got %q", got.Context.ReplyToMessageID)
+	}
+}
+
+func TestPublishInbound_MirrorsContextIntoLegacyFields(t *testing.T) {
+	mb := NewMessageBus()
+	defer mb.Close()
+
+	msg := InboundMessage{
+		Context: InboundContext{
+			Channel:          "telegram",
+			Account:          "bot-a",
+			ChatID:           "-1001",
+			ChatType:         "group",
+			TopicID:          "42",
+			SpaceID:          "guild-9",
+			SpaceType:        "guild",
+			SenderID:         "user-1",
+			MessageID:        "777",
+			Mentioned:        true,
+			ReplyToMessageID: "666",
+		},
+		Content: "hi",
+	}
+
+	if err := mb.PublishInbound(context.Background(), msg); err != nil {
+		t.Fatalf("PublishInbound failed: %v", err)
+	}
+
+	got := <-mb.InboundChan()
+	if got.Channel != "telegram" {
+		t.Fatalf("expected legacy channel telegram, got %q", got.Channel)
+	}
+	if got.ChatID != "-1001" {
+		t.Fatalf("expected legacy chat ID -1001, got %q", got.ChatID)
+	}
+	if got.SenderID != "user-1" {
+		t.Fatalf("expected legacy sender ID user-1, got %q", got.SenderID)
+	}
+	if got.MessageID != "777" {
+		t.Fatalf("expected legacy message ID 777, got %q", got.MessageID)
+	}
+	if got.Peer.Kind != "group" || got.Peer.ID != "-1001" {
+		t.Fatalf("expected legacy peer group/-1001, got %q/%q", got.Peer.Kind, got.Peer.ID)
+	}
+	if got.Metadata["account_id"] != "bot-a" {
+		t.Fatalf("expected mirrored account_id bot-a, got %q", got.Metadata["account_id"])
+	}
+	if got.Metadata["guild_id"] != "guild-9" {
+		t.Fatalf("expected mirrored guild_id guild-9, got %q", got.Metadata["guild_id"])
+	}
+	if got.Metadata["parent_peer_kind"] != "topic" || got.Metadata["parent_peer_id"] != "42" {
+		t.Fatalf(
+			"expected mirrored topic parent peer, got %q/%q",
+			got.Metadata["parent_peer_kind"],
+			got.Metadata["parent_peer_id"],
+		)
+	}
+	if got.Metadata["reply_to_message_id"] != "666" {
+		t.Fatalf("expected mirrored reply_to_message_id 666, got %q", got.Metadata["reply_to_message_id"])
+	}
+	if got.Metadata["is_mentioned"] != "true" {
+		t.Fatalf("expected mirrored is_mentioned true, got %q", got.Metadata["is_mentioned"])
+	}
 }
 
 func TestPublishOutboundSubscribe(t *testing.T) {

@@ -1241,6 +1241,7 @@ func (al *AgentLoop) ProcessDirectWithChannel(
 		Content:    content,
 		SessionKey: sessionKey,
 	}
+	msg.Context = bus.ContextFromLegacyInbound(msg)
 
 	return al.processMessage(ctx, msg)
 }
@@ -1276,6 +1277,8 @@ func (al *AgentLoop) ProcessHeartbeat(
 }
 
 func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
+	msg = bus.NormalizeInboundMessage(msg)
+
 	// Add message preview to log (show full content for error messages)
 	var logContent string
 	if strings.Contains(msg.Content, "Error:") || strings.Contains(msg.Content, "error") {

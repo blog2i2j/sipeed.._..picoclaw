@@ -80,6 +80,7 @@ func publish[T any](ctx context.Context, mb *MessageBus, ch chan T, msg T) error
 }
 
 func (mb *MessageBus) PublishInbound(ctx context.Context, msg InboundMessage) error {
+	msg = NormalizeInboundMessage(msg)
 	return publish(ctx, mb, mb.inbound, msg)
 }
 
