@@ -152,6 +152,28 @@ func TestMCPAddRejectsNonExecutableLocalCommand(t *testing.T) {
 	assert.Contains(t, err.Error(), "not executable")
 }
 
+func TestMCPAddExpandsHomeInSavedLocalCommand(t *testing.T) {
+	configPath := setupMCPConfigEnv(t)
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("USERPROFILE", homeDir)
+
+	localCmd := filepath.Join(homeDir, "bin", "my-mcp")
+	require.NoError(t, os.MkdirAll(filepath.Dir(localCmd), 0o755))
+	require.NoError(t, os.WriteFile(localCmd, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+
+	tildeCmd := "~" + string(os.PathSeparator) + filepath.Join("bin", "my-mcp")
+
+	cmd := NewMCPCommand()
+	_, err := executeCommand(cmd, []string{"add", "local-home", tildeCmd}, "")
+	require.NoError(t, err)
+
+	cfg := readMCPConfig(t, configPath)
+	server := cfg.Tools.MCP.Servers["local-home"]
+	assert.Equal(t, localCmd, server.Command)
+}
+
 func TestMCPAddShowsClearErrorForRemoteURLWithoutTransport(t *testing.T) {
 	setupMCPConfigEnv(t)
 

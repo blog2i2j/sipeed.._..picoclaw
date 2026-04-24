@@ -223,6 +223,9 @@ func buildServerConfig(target string, args []string, opts addOptions) (config.MC
 	if err := validateLocalCommandPath(target); err != nil {
 		return config.MCPServerConfig{}, err
 	}
+	if isLocalCommandPath(command) {
+		command = expandHomePath(command)
+	}
 
 	server.Command = command
 	server.Args = commandArgs
